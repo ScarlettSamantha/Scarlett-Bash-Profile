@@ -26,6 +26,12 @@ fix_ssh_agent() {
 
 fix_keychain() {
     if [[ $- == *i* ]]; then
-        eval `keychain --eval --agents ssh id_rsa backupkey_rsa`
+        # Find all SSH keys in ~/.ssh that end with _rsa, _dsa, or _ed25519 (common SSH key suffixes)
+        keys=$(find ~/.ssh -maxdepth 1 -type f -name "*.rsa" -o -name "*.dsa" -o -name "*.ed25519")
+
+        # If keys are found, load them using keychain
+        if [[ -n "$keys" ]]; then
+            eval "$(keychain --eval --agents ssh $keys)"
+        fi
     fi
 }
