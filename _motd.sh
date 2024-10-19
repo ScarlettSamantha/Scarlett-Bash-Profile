@@ -1,3 +1,7 @@
+if [[ $- != *i* ]]; then
+    return 0
+fi
+
 # Define color codes
 RESET='\033[0m'
 BOLD='\033[1m'
