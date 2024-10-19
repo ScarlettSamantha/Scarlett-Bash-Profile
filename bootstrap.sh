@@ -84,4 +84,4 @@ done
 
 source "$BOOTSTRAPPER_DIR/_motd.sh"
 
-echo -e "${CYAN}${BOLD}[Sc-Toolbox]${RESET} Bootstrapper: ${SUCCESS_EMOJI} Sourced all [${YELLOW}${iterator}${RESET}] .sh files in ${BOOTSTRAPPER_DIR}"
+echo -e "${CYAN}${BOLD}[Sc-Toolbox]${RESET} Bootstrapper: ${SUCCESS_EMOJI} Sourced all [${YELLOW}${iterator}${RESET}] .sh files in ${BOOTSTRAPPER_DIR}/*.sh"
