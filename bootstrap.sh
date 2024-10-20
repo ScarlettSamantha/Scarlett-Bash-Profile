@@ -41,7 +41,6 @@ shopt -s nullglob
 
 # Get the directory containing the bootstrapper script
 
-
 source "$BOOTSTRAPPER_DIR/_colors.sh"
 source "$BOOTSTRAPPER_DIR/_emoji.sh"
 
@@ -64,17 +63,20 @@ for script in "$BOOTSTRAPPER_DIR"/*.sh; do
     # Extract the first character of the basename
     first_char="${basename:0:1}"
 
-    # Debugging: Uncomment the following line to see which files are being processed
-    # echo "Processing file: $basename, First character: $first_char"
-
     # Skip the bootstrapper script itself and any files starting with '_'
     if [[ "$script" != "$BOOTSTRAPPER_PATH" && "$first_char" != '_' ]]; then
         ((iterator++)) # Increment the iterator
+        echo -e "  ↳ Sourcing: ${LOADING_EMOJI}${GREEN}  ${basename}${RESET}"
+        
+        # Source the script and capture the exit status
+        if source "$script"; then
+            echo -e "  ↳ Sourced:  ${SUCCESS_EMOJI}${GREEN} ${basename}${RESET}"
+        else
+            echo -e "  ↳ Sourced: ${FAILURE_EMOJI}${RED} ${basename} FAILED${RESET}"
+            # Optionally, log the failure
+            echo "$(date): Failed to source $basename" >> "$LOG_FILE"
+        fi
 
-        # Source the script
-        source "$script"
-
-        echo -e "  ↳ Sourced: ${GREEN}${basename}${RESET}"
     else
         # Optionally, you can log skipped files for debugging
         # echo -e "  ↳ Skipped: ${basename}"

@@ -1,1 +1,4 @@
 SUCCESS_EMOJI="✅"
+WARNING_EMOJI="⚠️"
+FAILURE_EMOJI="❌"
+LOADING_EMOJI="🛠️"
