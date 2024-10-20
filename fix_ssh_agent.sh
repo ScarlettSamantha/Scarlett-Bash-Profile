@@ -27,7 +27,8 @@ fix_ssh_agent() {
 fix_keychain() {
     if [[ $- == *i* ]]; then
         # Find all SSH keys in ~/.ssh that end with _rsa, _dsa, or _ed25519 (common SSH key suffixes)
-        keys=$(find ~/.ssh -maxdepth 1 -type f -name "*.rsa" -o -name "*.dsa" -o -name "*.ed25519")
+        keys=$(find ~/.ssh -maxdepth 1 -type f \( -name "*id_*" -o -name "*.dsa" -o -name "*.ed25519" \) ! -name "*.pub")
+
 
         # If keys are found, load them using keychain
         if [[ -n "$keys" ]]; then
@@ -35,3 +36,4 @@ fix_keychain() {
         fi
     fi
 }
+
