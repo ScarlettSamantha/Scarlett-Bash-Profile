@@ -63,19 +63,24 @@ indent_output() {
 fix_keychain() {
     # Check if the shell is interactive
     if [[ $- == *i* ]]; then
-        # Find all SSH keys in ~/.ssh that match common SSH key suffixes
-        keys=$(find ~/.ssh -maxdepth 1 -type f \( -name "*id_*" -o -name "*.dsa" -o -name "*.ed25519" \) ! -name "*.pub")
+        # Find all private keys in ~/.ssh that have a corresponding .pub file
+        keys=$(find ~/.ssh -maxdepth 1 -type f -name "*.pub" | sed 's/\.pub$//')
+
+        # If no paired keys are found, fall back to matching common SSH key suffixes
+        if [[ -z "$keys" ]]; then
+            keys=$(find ~/.ssh -maxdepth 1 -type f \( -name "*id_*" -o -name "*.dsa" -o -name "*.ed25519" \) ! -name "*.pub")
+        fi
 
         # If keys are found, load them using keychain
         if [[ -n "$keys" ]]; then
             # Initialize keychain without capturing output to set environment variables
             eval "$(keychain --eval --agents ssh $keys 2>/dev/null)"
-            
+
             # Capture keychain output, filter out unwanted lines and empty lines
             keychain_output=$(keychain --eval --agents ssh $keys 2>&1 | \
                               grep -vE "SSH_AUTH_SOCK|SSH_AGENT_PID|export" | \
                               grep -v '^$')
-            
+
             # Display the filtered output with indentation and icons
             echo "$keychain_output" | indent_output 4
         fi
