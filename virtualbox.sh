@@ -9,31 +9,71 @@ create_raw_device() {
   fi
 
   # Default values
-  local filename=${1:-"./raw1.vmdk"}
-  local drive=${2:-"PhysicalDrive1"}
-  local format=${3:-"VMDK"}
-  local variant=${4:-"RawDisk"}
+  local filename="./raw1.vmdk"
+  local drive=""
+  local format="VMDK"
+  local variant="RawDisk"
+  local chown_value="$(whoami):$(id -gn)"
+  local chmod_value="0600"
 
-  # Check if VBoxManage is installed
-  if ! command -v VBoxManage &> /dev/null; then
-    echo "Error: VBoxManage is not installed or not in PATH."
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --chown)
+        chown_value="$2"
+        shift 2
+        ;;
+      --chmod)
+        chmod_value="$2"
+        shift 2
+        ;;
+      --filename)
+        filename="$2"
+        shift 2
+        ;;
+      --drive)
+        drive="$2"
+        shift 2
+        ;;
+      --format)
+        format="$2"
+        shift 2
+        ;;
+      --variant)
+        variant="$2"
+        shift 2
+        ;;
+      *)
+        echo "Unknown argument: $1"
+        _create_raw_device_help
+        return 1
+        ;;
+    esac
+  done
+
+  # Validate that the raw drive is specified
+  if [[ -z "$drive" ]]; then
+    echo "Error: No physical drive specified."
     _create_raw_device_help
     return 1
   fi
 
   # Validate that the raw drive exists
-  if [[ ! -e "/dev/${drive}" && ! "$drive" =~ ^PhysicalDrive[0-9]+$ ]]; then
+  if [[ ! -e "$drive" && ! "$drive" =~ ^PhysicalDrive[0-9]+$ ]]; then
     echo "Error: Invalid or non-existent raw drive specified: $drive"
     _create_raw_device_help
     return 1
   fi
+
+  # Check if VBoxManage is installed
+  _check_virtualbox_installed || return 1
 
   # Attempt to create the raw device mapping
   VBoxManage createmedium disk \
     --filename "$filename" \
     --format "$format" \
     --variant "$variant" \
-    --property RawDrive="\\\\.\\$drive" 2> /dev/null
+    --property RawDrive="$drive" 2> /dev/null
 
   # Check if the command was successful
   if [[ $? -ne 0 ]]; then
@@ -47,45 +87,51 @@ create_raw_device() {
   echo " - Drive: $drive"
   echo " - Format: $format"
   echo " - Variant: $variant"
+
+  # Apply chown if specified
+  if [[ -n "$chown_value" ]]; then
+    chown "$chown_value" "$filename"
+    if [[ $? -eq 0 ]]; then
+      echo "Ownership set to: $chown_value"
+    else
+      echo "Warning: Failed to set ownership to: $chown_value"
+    fi
+  fi
+
+  # Apply chmod if specified
+  if [[ -n "$chmod_value" ]]; then
+    chmod "$chmod_value" "$filename"
+    if [[ $? -eq 0 ]]; then
+      echo "Permissions set to: $chmod_value"
+    else
+      echo "Warning: Failed to set permissions to: $chmod_value"
+    fi
+  fi
 }
 
 # Function to display help information
 _create_raw_device_help() {
-  echo "Usage: create_raw_device [filename] [physical_drive] [format] [variant]"
+  echo "Usage: create_raw_device --drive [physical_drive] [options]"
   echo ""
-  echo "Parameters:"
-  echo "  filename       Path to the raw device mapping file (default: './raw1.vmdk')."
-  echo "  physical_drive The physical drive to map, e.g., 'PhysicalDrive1' (default: 'PhysicalDrive1')."
-  echo "  format         The format of the raw device mapping file (default: 'VMDK')."
-  echo "  variant        The variant type, usually 'RawDisk' (default: 'RawDisk')."
+  echo "Required Parameters:"
+  echo "  --drive         The physical drive to map, e.g., '/dev/sdx' or '/dev/nvmeXnY' (Linux) or 'PhysicalDriveX' (Windows)."
+  echo ""
+  echo "Optional Parameters:"
+  echo "  --filename      Path to the raw device mapping file (default: './raw1.vmdk')."
+  echo "  --format        The format of the raw device mapping file (default: 'VMDK')."
+  echo "  --variant       The variant type, usually 'RawDisk' (default: 'RawDisk')."
+  echo "  --chown         Set ownership of the resulting file (default: current user and group)."
+  echo "  --chmod         Set permissions of the resulting file (default: '0600')."
   echo ""
   echo "Examples:"
-  echo "  create_raw_device"
-  echo "      Creates './raw1.vmdk' mapped to 'PhysicalDrive1' using default settings."
-  echo ""
-  echo "  create_raw_device './mydisk.vmdk' 'PhysicalDrive2'"
-  echo "      Creates './mydisk.vmdk' mapped to 'PhysicalDrive2'."
-  echo ""
-  echo "  create_raw_device './mydisk.vmdk' 'PhysicalDrive2' 'VMDK' 'RawDisk'"
-  echo "      Creates './mydisk.vmdk' mapped to 'PhysicalDrive2' with explicit format and variant."
-  echo ""
-  echo "  create_raw_device --help"
-  echo "      Displays this help message."
+  echo "  create_raw_device --drive '/dev/sdb' --filename './mydisk.vmdk' --chown 'user:group' --chmod '0644'"
+  echo "      Creates './mydisk.vmdk' mapped to '/dev/sdb', sets ownership to 'user:group', and permissions to '0644'."
 }
 
 # Function to check if VirtualBox is installed
 _check_virtualbox_installed() {
-  # Default the argument to "true" if not provided
-  local check="${1:-true}"
-
-  # If the argument is "false", skip the check
-  if [[ "$check" == "false" ]]; then
-    return 0
-  fi
-
-  # Check if VBoxManage command exists
   if command -v VBoxManage &> /dev/null; then
-    indent_message 3 "$SUCCESS_EMOJI VirtualBox is installed."
+    indent_message 3 "$SUCCESS_EMOJI VirtualBox is installed and VBoxManage is available."
     return 0
   else
     indent_message 3 "$FAILURE_EMOJI VirtualBox is not installed. Please install it and ensure VBoxManage is in your PATH."
