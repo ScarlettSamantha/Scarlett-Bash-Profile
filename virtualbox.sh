@@ -44,7 +44,7 @@ create_raw_device() {
         shift 2
         ;;
       *)
-        echo "Unknown argument: $1"
+        echo "$FAILURE_EMOJI Unknown argument: $1"
         _create_raw_device_help
         return 1
         ;;
@@ -53,14 +53,14 @@ create_raw_device() {
 
   # Validate that the raw drive is specified
   if [[ -z "$drive" ]]; then
-    echo "Error: No physical drive specified."
+    echo "$FAILURE_EMOJI Error: No physical drive specified."
     _create_raw_device_help
     return 1
   fi
 
   # Validate that the raw drive exists
   if [[ ! -e "$drive" && ! "$drive" =~ ^PhysicalDrive[0-9]+$ ]]; then
-    echo "Error: Invalid or non-existent raw drive specified: $drive"
+    echo "$FAILURE_EMOJI Error: Invalid or non-existent raw drive specified: $drive"
     _create_raw_device_help
     return 1
   fi
@@ -75,14 +75,7 @@ create_raw_device() {
     --variant "$variant" \
     --property RawDrive="$drive" 2> /dev/null
 
-  # Check if the command was successful
-  if [[ $? -ne 0 ]]; then
-    echo "Error: Failed to create raw device mapping."
-    _create_raw_device_help
-    return 1
-  fi
-
-  echo "Raw device mapping created successfully:"
+  echo "$SUCCESS_EMOJI Raw device mapping created successfully:"
   echo " - Filename: $filename"
   echo " - Drive: $drive"
   echo " - Format: $format"
@@ -92,9 +85,9 @@ create_raw_device() {
   if [[ -n "$chown_value" ]]; then
     chown "$chown_value" "$filename"
     if [[ $? -eq 0 ]]; then
-      echo "Ownership set to: $chown_value"
+      echo "$SUCCESS_EMOJI Ownership set to: $chown_value"
     else
-      echo "Warning: Failed to set ownership to: $chown_value"
+      echo "$FAILURE_EMOJI Warning: Failed to set ownership to: $chown_value"
     fi
   fi
 
@@ -102,9 +95,9 @@ create_raw_device() {
   if [[ -n "$chmod_value" ]]; then
     chmod "$chmod_value" "$filename"
     if [[ $? -eq 0 ]]; then
-      echo "Permissions set to: $chmod_value"
+      echo "$SUCCESS_EMOJI Permissions set to: $chmod_value"
     else
-      echo "Warning: Failed to set permissions to: $chmod_value"
+      echo "$FAILURE_EMOJI Warning: Failed to set permissions to: $chmod_value"
     fi
   fi
 }
