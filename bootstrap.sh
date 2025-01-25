@@ -19,6 +19,7 @@ get_script_path() {
 BOOTSTRAPPER_PATH="$(get_script_path)"
 BOOTSTRAPPER_DIR="$(dirname "$BOOTSTRAPPER_PATH")"
 source "$BOOTSTRAPPER_DIR/_precheck.sh"
+source "$BOOTSTRAPPER_DIR/_functions.sh"
 
 if [ ${#MISSING_COMMANDS[@]} -ne 0 ]; then
     echo "The following required commands are missing: ${MISSING_COMMANDS[*]}"
