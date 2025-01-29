@@ -68,7 +68,7 @@ fix_keychain() {
 
         # If no paired keys are found, fall back to matching common SSH key suffixes
         if [[ -z "$keys" ]]; then
-            keys=$(find ~/.ssh -maxdepth 1 -type f \( -name "*id_*" -o -name "*.dsa" -o -name "*.ed25519" \) ! -name "*.pub")
+            keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "*id_*" -o -name "*.dsa" -o -name "*ed25519*" \) ! -name "*.pub")
         fi
 
         # If keys are found, load them using keychain
