@@ -141,16 +141,19 @@ get_username() {
     echo "$(whoami)"
 }
 
-# Function to check if the user is in a specified group
 is_in_group() {
-    local group="$1"
+    local group="${1:-}"  # Default to empty if not provided
+    if [[ -z "$group" ]]; then
+        echo "Error: No group specified." >&2
+        return 2  # Return a distinct error code for missing argument
+    fi
+
     if id -nG "$(whoami)" | grep -qw "$group"; then
         return 0  # User is in group
     else
         return 1  # User is not in group
     fi
 }
-
 
 is_root() {
     if [[ "$EUID" -eq 0 ]]; then
@@ -203,7 +206,7 @@ get_user_groups() {
     for group in $groups; do
         if [[ "$show_uids" == "true" ]]; then
             gid=$(getent group "$group" | cut -d: -f3)
-            output+="$group(UID:$gid) "
+            output+="$group(GID:$gid) "
         else
             output+="$group "
         fi
