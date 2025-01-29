@@ -228,6 +228,7 @@ alias d-down='docker compose down'
 alias d-status='docker compose ps'
 
 alias d-force-rebuild='docker compose up --build --force-recreate -d'
+alias fstab='sudo vim /etc/fstab'
 
 # Create an alias for group_tables
 create_alias "group_tables" "group_tables" "yes" 'Display group/users rights.'
