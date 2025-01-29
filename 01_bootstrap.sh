@@ -44,8 +44,17 @@ shopt -s nullglob
 
 source "$BOOTSTRAPPER_DIR/_colors.sh"
 source "$BOOTSTRAPPER_DIR/_emoji.sh"
+source "$BOOTSTRAPPER_DIR/_vars.sh"
 
-echo -e "${CYAN}${BOLD}[Sc-Toolbox]${RESET} Bootstrapper started in ${BOOTSTRAPPER_DIR}"
+echo -e "${CYAN}${BOLD}${X_PREFIX}${RESET} Bootstrapper started in ${BOOTSTRAPPER_DIR}"
+
+echo -e "${USER_COLOR}${BOLD}${X_PREFIX}${RESET} Running as ${USER_COLOR}$(get_username) (UID: ${USER_ID}, Groups: ${USER_GROUPS})${RESET}"
+
+if is_ssh_session; then
+    echo -e "${colors["red"]}${X_PREFIX}⚠️ WARNING: You are running this script over SSH! (IP: $(echo "$SSH_CLIENT" | awk '{print $1}'))${colors["reset"]}"
+else
+    echo -e "${colors["green"]}${X_PREFIX} ✅ Safe: You are running this script locally.${colors["reset"]}"
+fi
 
 # Initialize iterator if not already done
 iterator=0
@@ -70,6 +79,7 @@ for script in "$BOOTSTRAPPER_DIR"/*.sh; do
         echo -e "  ↳ Sourcing: ${LOADING_EMOJI}${GREEN}  ${basename}${RESET}"
         
         # Source the script and capture the exit status
+        # shellcheck source=/dev/null
         if source "$script"; then
             echo -e "  ↳ Sourced:  ${SUCCESS_EMOJI}${GREEN} ${basename}${RESET}"
         else
@@ -84,6 +94,57 @@ for script in "$BOOTSTRAPPER_DIR"/*.sh; do
         :
     fi
 done
+
+# Check if a graphical session is available
+is_graphical_session() {
+    [[ -n "$DISPLAY" || -n "$WAYLAND_DISPLAY" || -n "$XDG_SESSION_TYPE" ]]
+}
+
+# Ask user for permission via GUI if available
+ask_user_permission_gui() {
+    if command -v zenity &>/dev/null; then
+        zenity --question --title="Root Access Required" --text="This command requires root privileges. Proceed?"
+        return $?
+    elif command -v kdialog &>/dev/null; then
+        kdialog --yesno "This command requires root privileges. Proceed?"
+        return $?
+    fi
+    return 1  # GUI failed, fallback to CLI
+}
+
+# Ask user for permission via CLI
+ask_user_permission_cli() {
+    read -rp "⚠️  This command requires root privileges. Proceed? (y/N): " response
+    [[ "$response" =~ ^[Yy]$ ]]
+}
+
+# Run a command as root if necessary
+run_as_root() {
+    local command="$1"
+
+    # Check if the command requires root privileges
+    if [[ "$command" =~ ">> /etc/" || "$command" =~ "sysctl" || "$command" =~ "echo " ]]; then
+        echo -e "\n⚠️  Root privileges required."
+
+        # Ask for user confirmation
+        if is_graphical_session; then
+            ask_user_permission_gui || { echo "❌ Operation cancelled."; return 1; }
+        else
+            ask_user_permission_cli || { echo "❌ Operation cancelled."; return 1; }
+        fi
+
+        echo -e "🔑 Elevating to root with sudo...\n"
+        command="sudo bash -c \"$command\""
+    fi
+
+    # Execute the command
+    if output=$(eval "$command" 2>&1); then
+        echo -e "✅ Command output:\n$output"
+    else
+        echo -e "\n❌ Error executing command:\n$output" >&2
+        return 1
+    fi
+}
 
 source "$BOOTSTRAPPER_DIR/_motd.sh"
 echo -e "${CYAN}${BOLD}[Sc-Toolbox]${RESET} Bootstrapper: ${SUCCESS_EMOJI} Sourced all [${YELLOW}${iterator}${RESET}] .sh files in ${BOOTSTRAPPER_DIR}/*.sh"

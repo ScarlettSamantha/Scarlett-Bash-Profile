@@ -15,39 +15,6 @@ function sourcing_text() {
     printf "%s%s %s %s%s%s" "${indentation}" "${emoji}" "${text}" "${color}" "${source_name}" "${reset}"
 }
 
-#!/bin/bash
-
-# Function to echo text with color
-# Arguments:
-#   1: The text to display
-#   2: The color code (e.g., "red", "green", "yellow", etc.)
-echo_colored_text() {
-    local text="$1"
-    local color="$2"
-
-    # Define color codes
-    local colors=(
-        ["black"]="\033[0;30m"
-        ["red"]="\033[0;31m"
-        ["green"]="\033[0;32m"
-        ["yellow"]="\033[0;33m"
-        ["blue"]="\033[0;34m"
-        ["magenta"]="\033[0;35m"
-        ["cyan"]="\033[0;36m"
-        ["white"]="\033[0;37m"
-    )
-
-    # Get the color code or default to white if the color is invalid
-    local color_code="${colors[$color]}"
-    if [ -z "$color_code" ]; then
-        echo "Invalid color. Supported colors are: ${!colors[@]}"
-        return 1
-    fi
-
-    # Echo text with the specified color and reset
-    echo -e "${color_code}${text}\033[0m"
-}
-
 # Function to display sourcing text with emoji, color, and indentation
 alias_text() {
     local alias_name="$1"             # Alias name
@@ -167,4 +134,102 @@ indent_message() {
         indent+="  " # Add two spaces per indent
     done
     echo -e "${indent}$indent_emoji ${message}"
+}
+
+# Function to get the current username
+get_username() {
+    echo "$(whoami)"
+}
+
+# Function to check if the user is in a specified group
+is_in_group() {
+    local group="$1"
+    if id -nG "$(whoami)" | grep -qw "$group"; then
+        return 0  # User is in group
+    else
+        return 1  # User is not in group
+    fi
+}
+
+
+is_root() {
+    if [[ "$EUID" -eq 0 ]]; then
+        return 0  # Root user
+    else
+        return 1  # Not root
+    fi
+}
+
+# Function to check if attached to a graphical display
+is_graphical_session() {
+    if [[ -n "$DISPLAY" || -n "$WAYLAND_DISPLAY" || -n "$XDG_SESSION_TYPE" ]]; then
+        return 0  # Has graphical session
+    else
+        return 1  # No graphical session
+    fi
+}
+
+# Function to display a GUI message using Zenity
+show_gui_message() {
+    local message="$1"
+    zenity --info --text="$message"
+}
+
+# Function to get the current user ID
+get_user_id() {
+    id -u
+}
+
+get_username() {
+    local uid="${1:-$(id -u)}"
+    getent passwd "$uid" | cut -d: -f1
+}
+
+# Function to check if the user is in a specified group
+is_in_group() {
+    local group="$1"
+    if id -nG "$(whoami)" | grep -qw "$group"; then
+        return 0  # User is in group
+    else
+        return 1  # User is not in group
+    fi
+}
+
+# Function to list all groups of the current user with their UIDs, optional
+get_user_groups() {
+    local show_uids="${1:-true}"
+    groups=$(id -Gn)
+    output=""
+    for group in $groups; do
+        if [[ "$show_uids" == "true" ]]; then
+            gid=$(getent group "$group" | cut -d: -f3)
+            output+="$group(UID:$gid) "
+        else
+            output+="$group "
+        fi
+    done
+    echo "$output"
+}
+
+is_ssh_session() {
+    [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]
+}
+
+# Function to detect the SSH connection details
+get_ssh_details() {
+    if is_ssh_session; then
+        local client_ip=$(echo "$SSH_CLIENT" | awk '{print $1}')
+        local client_port=$(echo "$SSH_CLIENT" | awk '{print $2}')
+        local tty_session="$SSH_TTY"
+        printf "%s %s %s" "$client_ip" "$client_port" "$tty_session"
+    fi
+}
+
+# Function to use SSH details in another function
+use_ssh_details() {
+    if is_ssh_session; then
+        read -r client_ip client_port tty_session < <(get_ssh_details)
+        # Example: Use these values in another function
+        some_other_function "$client_ip" "$client_port" "$tty_session"
+    fi
 }
