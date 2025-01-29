@@ -211,7 +211,7 @@ alias la='ls -A'
 alias l='ls -CF'
 
 # Docker Stuff
-
+alias docker-compose='docker compose'
 alias d='docker'
 alias dc='docker compose'
 alias dce='docker compose exec'
@@ -229,6 +229,8 @@ alias d-status='docker compose ps'
 
 alias d-force-rebuild='docker compose up --build --force-recreate -d'
 alias fstab='sudo vim /etc/fstab'
+alias hosts='sudo vim /etc/hosts'
+alias sysctl='sudo vim /etc/sysctl.conf'
 
 # Create an alias for group_tables
 create_alias "group_tables" "group_tables" "yes" 'Display group/users rights.'
