@@ -116,5 +116,24 @@ alias ll='ls -alF'
 alias la='ls -A'
 alias l='ls -CF'
 
+# Docker Stuff
+
+alias d='docker'
+alias dc='docker compose'
+alias dce='docker compose exec'
+alias dcr='docker compose run'
+alias dcb='docker compose build'
+alias dcd='docker compose down'
+alias dcu='docker compose up'
+alias dcp='docker compose ps'
+alias dcl='docker compose logs'
+alias dclf='docker compose logs -f'
+
+alias d-up='docker-compose up -d'
+alias d-down='docker compose down'
+alias d-status='docker compose ps'
+
+alias d-force-rebuild='docker compose up --build --force-recreate -d'
+
 # Create an alias for group_tables
 create_alias "group_tables" "group_tables" "yes" 'Display group/users rights.'

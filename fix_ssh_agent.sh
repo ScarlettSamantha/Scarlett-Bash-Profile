@@ -25,7 +25,7 @@ fix_ssh_agent() {
         fi
 
         # Start a new ssh-agent with the specified socket
-        echo "   * Starting a new SSH agent..." | indent_output 4
+        echo " * Starting a new SSH agent..." | indent_output 4
 
         # Capture ssh-agent output, filter out empty lines
         agent_output=$(ssh-agent -a "$SSH_AGENT_SOCK" 2>/dev/null | grep -v '^$')

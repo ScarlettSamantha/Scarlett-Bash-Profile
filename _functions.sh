@@ -15,6 +15,39 @@ function sourcing_text() {
     printf "%s%s %s %s%s%s" "${indentation}" "${emoji}" "${text}" "${color}" "${source_name}" "${reset}"
 }
 
+#!/bin/bash
+
+# Function to echo text with color
+# Arguments:
+#   1: The text to display
+#   2: The color code (e.g., "red", "green", "yellow", etc.)
+echo_colored_text() {
+    local text="$1"
+    local color="$2"
+
+    # Define color codes
+    local colors=(
+        ["black"]="\033[0;30m"
+        ["red"]="\033[0;31m"
+        ["green"]="\033[0;32m"
+        ["yellow"]="\033[0;33m"
+        ["blue"]="\033[0;34m"
+        ["magenta"]="\033[0;35m"
+        ["cyan"]="\033[0;36m"
+        ["white"]="\033[0;37m"
+    )
+
+    # Get the color code or default to white if the color is invalid
+    local color_code="${colors[$color]}"
+    if [ -z "$color_code" ]; then
+        echo "Invalid color. Supported colors are: ${!colors[@]}"
+        return 1
+    fi
+
+    # Echo text with the specified color and reset
+    echo -e "${color_code}${text}\033[0m"
+}
+
 # Function to display sourcing text with emoji, color, and indentation
 alias_text() {
     local alias_name="$1"             # Alias name
