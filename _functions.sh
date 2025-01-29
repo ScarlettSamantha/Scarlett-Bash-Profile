@@ -218,6 +218,36 @@ is_ssh_session() {
     [[ -n "$SSH_CLIENT" || -n "$SSH_TTY" ]]
 }
 
+binary_exists() {
+    command -v "$1" >/dev/null 2>&1
+}
+
+package_installed() {
+    local package="$1"
+    
+    if [[ -x "/bin/apt" ]]; then
+        /bin/apt list --installed 2>/dev/null | grep -q "^$package/"
+    elif command -v dpkg-query &>/dev/null; then
+        dpkg-query -W -f='${Status}' "$package" 2>/dev/null | grep -q "installed"
+    else
+        echo "Neither apt nor dpkg-query is available." >&2
+        return 2
+    fi
+}
+
+package_search() {
+    local package="$1"
+    
+    if [[ -x "/bin/apt" ]]; then
+        /bin/apt search "$package" 2>/dev/null | grep -E "^$package/"
+    elif command -v dpkg-query &>/dev/null; then
+        dpkg-query -W -f='${binary:Package}\n' 2>/dev/null | grep -E "^$package$"
+    else
+        echo "Neither apt nor dpkg-query is available." >&2
+        return 2
+    fi
+}
+
 # Function to detect the SSH connection details
 get_ssh_details() {
     if is_ssh_session; then
