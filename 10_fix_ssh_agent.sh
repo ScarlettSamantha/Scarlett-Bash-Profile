@@ -1,45 +1,41 @@
 #!/bin/bash
 
-# Define the SSH Agent socket path if not already set
+# Define SSH Agent socket path
 SSH_AGENT_SOCK="$HOME/.ssh/ssh-agent.sock"
 
-# Function to check if the SSH agent is running
+# Function to find all private SSH keys
+find_ssh_keys() {
+    find ~/.ssh -maxdepth 2 -type f \( -name "id_*" -o -name "ed25519-sk" \) ! -name "*.pub"
+}
+
+# Function to check if SSH agent is running
 is_ssh_agent_running() {
     if [[ -S "$SSH_AUTH_SOCK" ]]; then
         if ssh-add -l &>/dev/null; then
-            return 1  # SSH agent is running
+            return 0  # SSH agent is running
         fi
     fi
-    return 0  # SSH agent is not running
+    return 1  # SSH agent is not running
 }
 
+# Function to start SSH agent if not running
 fix_ssh_agent() {
-    # Start a new SSH agent and set socket path
-    echo "Starting a new SSH agent..."
-    eval "$(ssh-agent -s -a "$SSH_AGENT_SOCK")" > /dev/null
-
-    # Ensure SSH_AUTH_SOCK is correctly exported
-    export SSH_AUTH_SOCK="$SSH_AGENT_SOCK"
+    if ! is_ssh_agent_running; then
+        echo "Starting a new SSH agent..."
+        eval "$(ssh-agent -s -a "$SSH_AGENT_SOCK")" > /dev/null
+        export SSH_AUTH_SOCK="$SSH_AGENT_SOCK"
+    else
+        echo "SSH agent is already running."
+    fi
 }
 
+# Function to load SSH keys into the agent and keychain
 load_ssh_keys() {
-    if ! is_ssh_agent_running; then
-        echo "SSH agent is not running. Starting agent..."
-        fix_ssh_agent
-    fi
-    
-    if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
-        echo "Using SSH agent at: $SSH_AUTH_SOCK"
-    else
-        echo "No SSH agent detected."
-    fi
-
-    # Load SSH keys
-    keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
+    keys=$(find_ssh_keys)
     
     if [ -n "$keys" ]; then
         echo "Loading SSH keys..."
-
+        
         if command -v keychain >/dev/null 2>&1; then
             eval "$(keychain --eval --agents ssh $keys 2>/dev/null)"
         else
@@ -50,13 +46,13 @@ load_ssh_keys() {
     else
         echo "No SSH keys found."
     fi
-    
-    # List currently loaded keys
+
     ssh-add -l 2>/dev/null || echo "No keys loaded."
 }
 
+# Function to fix keychain in case of issues
 fix_keychain() {
-    keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
+    keys=$(find_ssh_keys)
 
     if [ -n "$keys" ]; then
         if command -v keychain >/dev/null 2>&1; then
@@ -76,6 +72,7 @@ fix_keychain() {
     fi
 }
 
+# Function to check if a YubiKey is present
 check_yubikey() {
     if command -v ykman &>/dev/null; then
         if ykman info | grep -q "FIDO2"; then
@@ -91,7 +88,16 @@ check_yubikey() {
     fi
 }
 
+# Function to import SSH_AUTH_SOCK from the SSH client and link it
+import_ssh_client_socket() {
+    if [[ -n "$SSH_CONNECTION" ]]; then
+        echo "Detected SSH client connection. Using forwarded agent socket."
+        export SSH_AUTH_SOCK="$(env | grep SSH_AUTH_SOCK | cut -d'=' -f2)"
+        echo "Using SSH_AUTH_SOCK: $SSH_AUTH_SOCK"
+    fi
+}
 
-# Execute the functions
+# Execute functions
+import_ssh_client_socket
 fix_ssh_agent
 fix_keychain
