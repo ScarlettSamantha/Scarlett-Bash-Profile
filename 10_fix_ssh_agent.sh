@@ -28,13 +28,16 @@ fix_ssh_agent() {
     export SSH_AUTH_SOCK
 }
 
-
 load_ssh_keys() {
     # Check if SSH agent is running
     if ! is_ssh_agent_running; then
         echo "SSH agent is not running. Starting agent..."
         fix_ssh_agent
     fi
+
+    ssh-add -l | awk '{print $3}' | while read -r key; do
+        echo "$key"
+    done
     
     # Detect if a forwarded agent is available
     if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
