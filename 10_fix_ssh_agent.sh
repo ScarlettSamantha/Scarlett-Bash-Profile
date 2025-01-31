@@ -18,14 +18,15 @@ is_ssh_agent_running() {
     return 1  # SSH agent is not running
 }
 
-# Function to start SSH agent if not running
+# Function to start or reuse SSH agent
 fix_ssh_agent() {
-    if ! is_ssh_agent_running; then
+    if pgrep -u "$USER" ssh-agent > /dev/null; then
+        echo "SSH agent is already running. Reusing existing agent."
+        export SSH_AUTH_SOCK=$(find /tmp/ssh-* -user "$USER" -name agent.* 2>/dev/null | head -n 1)
+    else
         echo "Starting a new SSH agent..."
         eval "$(ssh-agent -s -a "$SSH_AGENT_SOCK")" > /dev/null
         export SSH_AUTH_SOCK="$SSH_AGENT_SOCK"
-    else
-        echo "SSH agent is already running."
     fi
 }
 
@@ -92,7 +93,7 @@ check_yubikey() {
 import_ssh_client_socket() {
     if [[ -n "$SSH_CONNECTION" ]]; then
         echo "Detected SSH client connection. Using forwarded agent socket."
-        export SSH_AUTH_SOCK="$(env | grep SSH_AUTH_SOCK | cut -d'=' -f2)"
+        export SSH_AUTH_SOCK="$SSH_AUTH_SOCK"
         echo "Using SSH_AUTH_SOCK: $SSH_AUTH_SOCK"
     fi
 }
