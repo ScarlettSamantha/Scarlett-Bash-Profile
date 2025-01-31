@@ -30,9 +30,22 @@ fix_ssh_agent() {
 
 
 load_ssh_keys() {
+    # Check if SSH agent is running
+    if ! is_ssh_agent_running; then
+        echo "SSH agent is not running. Starting agent..."
+        fix_ssh_agent
+    fi
+    
+    # Detect if a forwarded agent is available
+    if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
+        echo "Using forwarded SSH agent."
+    else
+        echo "No forwarded SSH agent detected."
+    fi
+    
     # Find private keys (excluding .pub files)
     keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
-
+    
     if [ -n "$keys" ]; then
         echo "Loading SSH keys..."
 
@@ -46,8 +59,11 @@ load_ssh_keys() {
             done
         fi
     else
-        echo "No SSH keys found."
+        echo "No SSH keys found in ~/.ssh. Checking forwarded agent..."
     fi
+    
+    # List currently loaded keys
+    ssh-add -l 2>/dev/null || echo "No keys loaded."
 }
 
 
