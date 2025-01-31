@@ -266,3 +266,75 @@ use_ssh_details() {
         some_other_function "$client_ip" "$client_port" "$tty_session"
     fi
 }
+
+should_skip_file() {
+    local file="$1"
+
+    [[ ! -f "$file" ]] && return 1  # Return early if not a file
+
+    # Read the first line
+    local first_line
+    first_line=$(head -n 1 "$file")
+
+    # Check for Ignore flags
+    if [[ "$first_line" == "# Ignore: true" ]]; then
+        return 0  # Skip the file
+    elif [[ "$first_line" == "# Ignore: false" ]]; then
+        return 1  # Do not skip the file
+    fi
+
+    return 1  # Default to not skipping
+}
+
+normalize_path() {
+    local path="$1"
+    # Remove duplicate slashes (except at the beginning for root paths)
+    echo "$path" | sed -E 's|//+|/|g'
+}
+
+join_path() {
+    local base_path="$1"
+    shift # Remove first argument (base path)
+
+    for segment in "$@"; do
+        # Ensure we don't prefix an absolute segment ("/something")
+        if [[ "$segment" == /* ]]; then
+            base_path="$segment"
+        else
+            base_path="${base_path%/}/$segment"
+        fi
+    done
+
+    # Normalize final path
+    normalize_path "$base_path"
+}
+
+_trim_core() {
+    local var="$1"
+    local chars="${2:-[:space:]}"  # Default to whitespace
+    local mode="$3"  # "both" for trim, "left" for ltrim, "right" for rtrim
+    local pattern
+
+    # Convert comma-separated list into a character class safely
+    pattern="[""$(echo "$chars" | sed 's/,//g')""]"
+
+    # Trim leading characters
+    [[ "$mode" != "right" ]] && var="${var#"${var%%[!$pattern]*}"}"
+
+    # Trim trailing characters
+    [[ "$mode" != "left" ]] && var="${var%"${var##*[^$pattern]}"}"
+
+    echo "$var"
+}
+
+trim() {
+    _trim_core "$1" "$2" "both"
+}
+
+ltrim() {
+    _trim_core "$1" "$2" "left"
+}
+
+rtrim() {
+    _trim_core "$1" "$2" "right"
+}

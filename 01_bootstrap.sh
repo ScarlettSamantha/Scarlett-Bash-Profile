@@ -8,16 +8,18 @@ LOG_FILE="$HOME/.ssh_agent_log"
 get_script_path() {
     local SOURCE="${BASH_SOURCE[0]}"
     while [ -h "$SOURCE" ]; do # Resolve $SOURCE until the file is no longer a symlink
-        DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+        DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
         SOURCE="$(readlink "$SOURCE")"
         [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
     done
-    DIR="$( cd -P "$( dirname "$SOURCE" )" >/dev/null 2>&1 && pwd )"
+    DIR="$(cd -P "$(dirname "$SOURCE")" >/dev/null 2>&1 && pwd)"
     echo "$DIR/$(basename "$SOURCE")"
 }
 
 BOOTSTRAPPER_PATH="$(get_script_path)"
 BOOTSTRAPPER_DIR="$(dirname "$BOOTSTRAPPER_PATH")"
+source "$BOOTSTRAPPER_DIR/_vars.sh"
+source "$BOOTSTRAPPER_DIR/_debug.sh"
 source "$BOOTSTRAPPER_DIR/_precheck.sh"
 source "$BOOTSTRAPPER_DIR/_functions.sh"
 
@@ -56,9 +58,16 @@ else
     echo -e "${colors["green"]}${X_PREFIX} ✅ Safe: You are running this script locally.${colors["reset"]}"
 fi
 
+if [[ $DEBUG == "true" ]]  ; then
+    echo -e "${colors["yellow"]}${X_PREFIX} 🐞 Debug mode enabled.${colors["reset"]}"
+else
+    echo -e "$DEBUG"
+fi
+
 # Initialize iterator if not already done
 iterator=0
 
+# Loop through all .sh files in the directory
 # Loop through all .sh files in the directory
 for script in "$BOOTSTRAPPER_DIR"/*.sh; do
     # Check if the glob didn't match any files
@@ -73,25 +82,28 @@ for script in "$BOOTSTRAPPER_DIR"/*.sh; do
     # Extract the first character of the basename
     first_char="${basename:0:1}"
 
-    # Skip the bootstrapper script itself and any files starting with '_'
-    if [[ "$script" != "$BOOTSTRAPPER_PATH" && "$first_char" != '_' ]]; then
-        ((iterator++)) # Increment the iterator
+    # **Skip `_`-prefixed or files that want to be skipped files immediately**
+    if [ "$first_char" == "_" ] || [ "$(should_skip_file "$script")" == 0 ]; then
+        if [ "$DEBUG" = 1 ] && [ "$SC_DEBUG_LEVEL" = 'info' ]; then
+            echo -e "  ↳ Skipped (matches exclude rule for _-prefix): ${basename}"
+        fi
+        continue
+    fi
+
+    # Skip the bootstrapper script itself
+    if [[ "$script" != "$BOOTSTRAPPER_PATH" ]]; then
+        iterator=$((iterator+1)) # Increment the iterator
         echo -e "  ↳ Sourcing: ${LOADING_EMOJI}${GREEN}  ${basename}${RESET}"
-        
+
         # Source the script and capture the exit status
         # shellcheck source=/dev/null
         if source "$script"; then
             echo -e "  ↳ Sourced:  ${SUCCESS_EMOJI}${GREEN} ${basename}${RESET}"
         else
             echo -e "  ↳ Sourced: ${FAILURE_EMOJI}${RED} ${basename} FAILED${RESET}"
-            # Optionally, log the failure
-            echo "$(date): Failed to source $basename" >> "$LOG_FILE"
+            # Log the failure
+            echo "$(date): Failed to source $basename" >>"$LOG_FILE"
         fi
-
-    else
-        # Optionally, you can log skipped files for debugging
-        # echo -e "  ↳ Skipped: ${basename}"
-        :
     fi
 done
 
@@ -109,7 +121,7 @@ ask_user_permission_gui() {
         kdialog --yesno "This command requires root privileges. Proceed?"
         return $?
     fi
-    return 1  # GUI failed, fallback to CLI
+    return 1 # GUI failed, fallback to CLI
 }
 
 # Ask user for permission via CLI
@@ -128,9 +140,15 @@ run_as_root() {
 
         # Ask for user confirmation
         if is_graphical_session; then
-            ask_user_permission_gui || { echo "❌ Operation cancelled."; return 1; }
+            ask_user_permission_gui || {
+                echo "❌ Operation cancelled."
+                return 1
+            }
         else
-            ask_user_permission_cli || { echo "❌ Operation cancelled."; return 1; }
+            ask_user_permission_cli || {
+                echo "❌ Operation cancelled."
+                return 1
+            }
         fi
 
         echo -e "🔑 Elevating to root with sudo...\n"
