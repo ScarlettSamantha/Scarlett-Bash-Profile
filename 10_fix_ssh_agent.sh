@@ -14,20 +14,12 @@ is_ssh_agent_running() {
 }
 
 fix_ssh_agent() {
-    if ! is_ssh_agent_running; then
-        # Remove stale socket file
-        if [ -e "$SSH_AGENT_SOCK" ]; then
-            echo "Removing stale SSH agent socket file..."
-            rm -f "$SSH_AGENT_SOCK"
-        fi
+    # Start a new SSH agent and set socket path
+    echo "Starting a new SSH agent..."
+    eval "$(ssh-agent -s -a "$SSH_AGENT_SOCK")" > /dev/null
 
-        # Start a new SSH agent and set socket path
-        echo "Starting a new SSH agent..."
-        eval "$(ssh-agent -s -a "$SSH_AGENT_SOCK")" > /dev/null
-
-        # Ensure SSH_AUTH_SOCK is correctly exported
-        export SSH_AUTH_SOCK="$SSH_AGENT_SOCK"
-    fi
+    # Ensure SSH_AUTH_SOCK is correctly exported
+    export SSH_AUTH_SOCK="$SSH_AGENT_SOCK"
 }
 
 load_ssh_keys() {
