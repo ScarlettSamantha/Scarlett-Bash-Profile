@@ -28,16 +28,13 @@ fix_ssh_agent() {
     export SSH_AUTH_SOCK
 }
 
+
 load_ssh_keys() {
     # Check if SSH agent is running
     if ! is_ssh_agent_running; then
         echo "SSH agent is not running. Starting agent..."
         fix_ssh_agent
     fi
-
-    ssh-add -l | awk '{print $3}' | while read -r key; do
-        echo "$key"
-    done
     
     # Detect if a forwarded agent is available
     if [ -n "$SSH_AUTH_SOCK" ] && [ -S "$SSH_AUTH_SOCK" ]; then
@@ -85,7 +82,6 @@ fix_keychain() {
     if [ -n "$keys" ]; then
         if command -v keychain >/dev/null 2>&1; then
             # Initialize keychain and capture its output
-            load_ssh_keys
             eval "$(keychain --eval --agents ssh $keys 2>/dev/null)"
 
             # Capture keychain output, filter out unwanted lines
