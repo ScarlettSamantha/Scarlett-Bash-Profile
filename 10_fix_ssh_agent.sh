@@ -2,17 +2,13 @@
 
 # Function to check if the SSH agent is running
 is_ssh_agent_running() {
-    if [ -S "$SSH_AGENT_SOCK" ]; then
+    if [[ -S "$SSH_AUTH_SOCK" ]]; then
         # Attempt to communicate with the agent
-        if ssh-add -l > /dev/null 2>&1; then
-            return 0
-        else
-            # If ssh-add fails, the agent might not be running
-            return 1
+        if ssh-add -l &>/dev/null; then
+            return 0  # SSH agent is running and accessible
         fi
-    else
-        return 1
     fi
+    return 1  # SSH agent is not running or inaccessible
 }
 
 # Function to fix or start the SSH agent
@@ -45,6 +41,13 @@ fix_keychain() {
     # Check if the shell is interactive
     if [[ $- == *i* ]]; then
         keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "*id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
+
+        if is_ssh_agent_running; then
+            export SSH_AUTH_SOCK;
+            printf "* SSH agent is running at %s\n" "$SSH_AUTH_SOCK" | indent_output 4
+        else
+            echo "* SSH agent is not running." | indent_output 4
+        fi
 
         # If keys are found, load them using keychain
         if [[ -n "$keys" ]]; then
