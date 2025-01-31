@@ -90,6 +90,26 @@ var_dump() {
     fi
 }
 
+# Generic function to indent the output and prefix with an icon
+indent_output() {
+    local indent_level=$1
+    local prefix_icon="├─ "  # Icon for tree-like structure; you can change this as desired
+    local prefix
+
+    # Generate indentation spaces based on the indent level
+    prefix=$(printf ' %.0s' $(seq 1 "$indent_level"))
+    prefix="${prefix}${prefix_icon}"
+
+    # Read each line, remove empty lines, and add the prefix
+    while IFS= read -r line; do
+        # Skip empty lines
+        if [[ -n "$line" ]]; then
+            echo "${prefix}${line}"
+        fi
+    done
+}
+
+
 handle_interactive_output() {
     local command_output
     local is_interactive

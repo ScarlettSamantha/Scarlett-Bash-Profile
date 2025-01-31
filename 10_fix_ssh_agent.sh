@@ -28,48 +28,23 @@ fix_ssh_agent() {
         echo " * Starting a new SSH agent..." | indent_output 4
 
         # Capture ssh-agent output, filter out empty lines
-        agent_output=$(ssh-agent -a "$SSH_AGENT_SOCK" 2>/dev/null | grep -v '^$')
+        agent_output=$(ssh-agent -a "$SSH_AGENT_SOCK" -P libfido2.so 2>/dev/null | grep -v '^$')
 
         # Display the filtered output with indentation and icons
-        echo "$agent_output" | indent_output 4
+        #echo "$agent_output" | indent_output 4
 
         # Evaluate the ssh-agent output to set environment variables
-        eval "$agent_output"
+        eval "$agent_output" | indent_output 4
     else
         echo " * SSH agent is already running." | indent_output 4
     fi
-}
-
-# Generic function to indent the output and prefix with an icon
-indent_output() {
-    local indent_level=$1
-    local prefix_icon="├─ "  # Icon for tree-like structure; you can change this as desired
-    local prefix
-
-    # Generate indentation spaces based on the indent level
-    prefix=$(printf ' %.0s' $(seq 1 "$indent_level"))
-    prefix="${prefix}${prefix_icon}"
-
-    # Read each line, remove empty lines, and add the prefix
-    while IFS= read -r line; do
-        # Skip empty lines
-        if [[ -n "$line" ]]; then
-            echo "${prefix}${line}"
-        fi
-    done
 }
 
 # Function to fix and display keychain information
 fix_keychain() {
     # Check if the shell is interactive
     if [[ $- == *i* ]]; then
-        # Find all private keys in ~/.ssh that have a corresponding .pub file
-        keys=$(find ~/.ssh -maxdepth 1 -type f -name "*.pub" | sed 's/\.pub$//')
-
-        # If no paired keys are found, fall back to matching common SSH key suffixes
-        if [[ -z "$keys" ]]; then
-            keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "*id_*" -o -name "*.dsa" -o -name "*ed25519*" \) ! -name "*.pub")
-        fi
+        keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "*id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
 
         # If keys are found, load them using keychain
         if [[ -n "$keys" ]]; then
@@ -87,6 +62,77 @@ fix_keychain() {
     fi
 }
 
+# Function to check if YubiKey is connected
+check_yubikey() {
+    if command -v ykman 2>&1 /dev/null; then
+        if ykman info | grep -q "FIDO2"; then
+            echo "✅ YubiKey detected." | indent_output 4
+            return 0
+        else
+            echo "❌ No YubiKey found. Please insert it." | indent_output 4
+            return 1
+        fi
+    else
+        echo "❌ Error: 'ykman' is not installed. Install it with: sudo apt install yubikey-manager" | indent_output 4
+        return 1
+    fi
+}
+
+set_yubikey_cache() {
+    local timeout=$1
+    local ssh_key
+
+    # Get the SSH key from Git global config
+    ssh_key=$(git config --global user.signingkey)
+
+    # If no global key, check Git local config
+    if [ -z "$ssh_key" ]; then
+        ssh_key=$(git config --local user.signingkey)
+    fi
+
+    # If no Git key is found, default to ~/.ssh/id_rsa
+    if [ -z "$ssh_key" ]; then
+        ssh_key="$HOME/.ssh/id_rsa"
+    fi
+
+    if ! check_yubikey; then
+        return 1
+    fi
+
+    if [ ! -f "$ssh_key" ]; then
+        echo "❌ Error: SSH key not found at $ssh_key."
+        return 1
+    fi
+
+    # Set YubiKey fingerprint cache timeout (for GPG-based SSH authentication)
+    if command -v gpg-connect-agent &>/dev/null; then
+        echo "🔒 Setting YubiKey fingerprint cache timeout to $timeout seconds..."
+        echo "SETENV SSH_AUTH_SOCK $SSH_AUTH_SOCK" | gpg-connect-agent updatestartuptty /bye
+        echo "SETATTR AUTH-TIMEOUT $timeout" | gpg-connect-agent /bye
+    elif command -v ykman &>/dev/null; then
+        echo "🔒 Setting YubiKey fingerprint cache timeout to $timeout seconds using ykman..."
+        ykman piv info | grep -q "PIN timeout" && ykman piv set-pin-retries 3 "$timeout"  # This assumes a compatible YubiKey
+    else
+        echo "⚠️ No supported method found to set YubiKey fingerprint cache timeout."
+    fi
+    echo "✅ YubiKey fingerprint cache set to $timeout seconds for key: $ssh_key"
+
+}
+
+# Function to check if the SSH key is cached
+get_yubikey_cache() {
+    ssh-add -l | grep -i "sk" 2>&1 /dev/null
+    if [ $? -eq 0 ]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
 # Execute the functions
 fix_ssh_agent
 fix_keychain
+
+# Create an alias with a force option
+create_alias "fix_ssh_agent" "fix_ssh_agent" "yes" "Fix or start the SSH agent"
+create_alias "set_yubikey_cache" "set_yubikey_cache" "yes" "Force set the YubiKey fingerprint cache timeout"

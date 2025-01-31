@@ -60,8 +60,6 @@ fi
 
 if [[ $DEBUG == "true" ]]  ; then
     echo -e "${colors["yellow"]}${X_PREFIX} 🐞 Debug mode enabled.${colors["reset"]}"
-else
-    echo -e "$DEBUG"
 fi
 
 # Initialize iterator if not already done
