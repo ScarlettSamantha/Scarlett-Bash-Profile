@@ -82,6 +82,7 @@ fix_keychain() {
     if [ -n "$keys" ]; then
         if command -v keychain >/dev/null 2>&1; then
             # Initialize keychain and capture its output
+            load_ssh_keys
             eval "$(keychain --eval --agents ssh $keys 2>/dev/null)"
 
             # Capture keychain output, filter out unwanted lines
