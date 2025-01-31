@@ -11,57 +11,75 @@ is_ssh_agent_running() {
     return 0  # SSH agent is not running or inaccessible
 }
 
-# Function to fix or start the SSH agent
+
 fix_ssh_agent() {
     if ! is_ssh_agent_running; then
-        # Remove any stale socket file
+        # Remove stale socket file
         if [ -e "$SSH_AGENT_SOCK" ]; then
-            echo "Removing stale SSH agent socket file..." | indent_output 4
+            echo "Removing stale SSH agent socket file..."
             rm -f "$SSH_AGENT_SOCK"
         fi
 
-        # Start a new ssh-agent with the specified socket
-        echo " * Starting a new SSH agent..." | indent_output 4
+        # Start new ssh-agent
+        echo "Starting a new SSH agent..."
+        eval "$(ssh-agent -s -a "$SSH_AGENT_SOCK" -P libfido2.so)" > /dev/null
+    fi
 
-        # Capture ssh-agent output, filter out empty lines
-        agent_output=$(ssh-agent -a "$SSH_AGENT_SOCK" -P libfido2.so 2>/dev/null | grep -v '^$')
+    export SSH_AUTH_SOCK
+}
 
-        # Display the filtered output with indentation and icons
-        #echo "$agent_output" | indent_output 4
 
-        # Evaluate the ssh-agent output to set environment variables
-        eval "$agent_output" | indent_output 4
+load_ssh_keys() {
+    # Find private keys (excluding .pub files)
+    keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
+
+    if [ -n "$keys" ]; then
+        echo "Loading SSH keys..."
+
+        if command -v keychain >/dev/null 2>&1; then
+            # Use keychain for persistent key management
+            eval "$(keychain --eval --agents ssh $keys 2>/dev/null)"
+        else
+            # Add keys manually if keychain is not installed
+            for key in $keys; do
+                ssh-add "$key" 2>/dev/null
+            done
+        fi
     else
-        echo " * SSH agent is already running." | indent_output 4
+        echo "No SSH keys found."
     fi
 }
 
+
 # Function to fix and display keychain information
 fix_keychain() {
-    # Check if the shell is interactive
-    if [[ $- == *i* ]]; then
-        keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "*id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
+    if is_ssh_agent_running; then
+        export SSH_AUTH_SOCK
+        printf " * SSH agent is running at %s\n" "$SSH_AUTH_SOCK"
+    else
+        echo " * SSH agent is not running."
+    fi
 
-        if is_ssh_agent_running; then
-            export SSH_AUTH_SOCK;
-            printf "* SSH agent is running at %s\n" "$SSH_AUTH_SOCK" | indent_output 4
-        else
-            echo "* SSH agent is not running." | indent_output 4
-        fi
+    # Find SSH keys
+    keys=$(find ~/.ssh -maxdepth 2 -type f \( -name "id_*" -o -name "ed25519-sk" \) ! -name "*.pub")
 
-        # If keys are found, load them using keychain
-        if [[ -n "$keys" ]]; then
-            # Initialize keychain without capturing output to set environment variables
+    if [ -n "$keys" ]; then
+        if command -v keychain >/dev/null 2>&1; then
+            # Initialize keychain and capture its output
             eval "$(keychain --eval --agents ssh $keys 2>/dev/null)"
 
-            # Capture keychain output, filter out unwanted lines and empty lines
+            # Capture keychain output, filter out unwanted lines
             keychain_output=$(keychain --eval --agents ssh $keys 2>&1 | \
                               grep -vE "SSH_AUTH_SOCK|SSH_AGENT_PID|export" | \
                               grep -v '^$')
 
-            # Display the filtered output with indentation and icons
-            echo "$keychain_output" | indent_output 4
+            echo "$keychain_output"
+        else
+            echo " * Keychain not found, using ssh-add manually."
+            load_ssh_keys
         fi
+    else
+        echo " * No SSH keys found."
     fi
 }
 
