@@ -24,7 +24,7 @@ function re_sign_my_commits() {
     echo "💀 This is EXTREMELY DANGEROUS and can cause IRREVERSIBLE changes to the repository."
     echo "💣 Ensure you know what you're doing before proceeding!"
     echo "🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥🔥"
-    echo -e "Press [Y] to continue or [n] to abort: \c"
+    echo -e "Press [Y/n] to continue or abort: \c"
     read -r confirm
     confirm=${confirm:-Y}
     if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
