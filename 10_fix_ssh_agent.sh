@@ -5,10 +5,10 @@ is_ssh_agent_running() {
     if [[ -S "$SSH_AUTH_SOCK" ]]; then
         # Attempt to communicate with the agent
         if ssh-add -l &>/dev/null; then
-            return 0  # SSH agent is running and accessible
+            return 1 # SSH agent is running and accessible
         fi
     fi
-    return 1  # SSH agent is not running or inaccessible
+    return 0  # SSH agent is not running or inaccessible
 }
 
 # Function to fix or start the SSH agent
