@@ -7,10 +7,10 @@ SSH_AGENT_SOCK="$HOME/.ssh/ssh-agent.sock"
 is_ssh_agent_running() {
     if [[ -S "$SSH_AUTH_SOCK" ]]; then
         if ssh-add -l &>/dev/null; then
-            return 0  # SSH agent is running
+            return 1  # SSH agent is running
         fi
     fi
-    return 1  # SSH agent is not running
+    return 0  # SSH agent is not running
 }
 
 fix_ssh_agent() {
@@ -99,38 +99,6 @@ check_yubikey() {
     fi
 }
 
-set_yubikey_cache() {
-    local timeout=$1
-    local ssh_key
-
-    ssh_key=$(git config --global user.signingkey || git config --local user.signingkey || echo "$HOME/.ssh/id_rsa")
-
-    if ! check_yubikey; then
-        return 1
-    fi
-
-    if [ ! -f "$ssh_key" ]; then
-        echo "❌ Error: SSH key not found at $ssh_key."
-        return 1
-    fi
-
-    if command -v gpg-connect-agent &>/dev/null; then
-        echo "🔒 Setting YubiKey fingerprint cache timeout to $timeout seconds..."
-        echo "SETENV SSH_AUTH_SOCK $SSH_AUTH_SOCK" | gpg-connect-agent updatestartuptty /bye
-        echo "SETATTR AUTH-TIMEOUT $timeout" | gpg-connect-agent /bye
-    elif command -v ykman &>/dev/null; then
-        echo "🔒 Setting YubiKey fingerprint cache timeout to $timeout seconds using ykman..."
-        ykman piv info | grep -q "PIN timeout" && ykman piv set-pin-retries 3 "$timeout"
-    else
-        echo "⚠️ No supported method found to set YubiKey fingerprint cache timeout."
-    fi
-    echo "✅ YubiKey fingerprint cache set to $timeout seconds for key: $ssh_key"
-}
-
-get_yubikey_cache() {
-    ssh-add -l | grep -i "sk" &>/dev/null
-    echo $?
-}
 
 # Execute the functions
 fix_ssh_agent
